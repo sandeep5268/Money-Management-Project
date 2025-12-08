@@ -1,3 +1,32 @@
+database.ts - Database Configuration & Connection Guide
+
+Purpose:
+- Centralize database connection logic and configuration for the backend. Provide a single exported function to initialize and return the database client/ORM instance.
+
+Responsibilities:
+- Read DB connection details from environment variables (host, port, database name, username, password) or from a configured connection URL.
+- Initialize chosen ORM/driver (Prisma, TypeORM, Sequelize, or native `pg` client for PostgreSQL).
+- Apply migrations or ensure schema is up-to-date (migrations via Prisma Migrate, TypeORM migrations, or Flyway/liquibase externally).
+- Export utility functions and the connected client/ORM instance for use in controllers/services.
+
+Design choices and suggestions:
+- Use Prisma for a modern developer experience with TypeScript types; otherwise use TypeORM or Sequelize depending on team familiarity.
+- Keep migrations out-of-band in CI/CD and avoid running destructive migrations automatically in production.
+- Handle connection errors explicitly and retry with exponential backoff at startup to handle transient DB availability.
+
+Example exports (descriptive):
+- `async function connectDatabase(): Promise<DbClient>` — connects to DB and resolves when ready.
+- `function getDbClient(): DbClient` — returns the shared client instance.
+- Optionally, `async function closeDatabase()` to gracefully shut down connections during termination.
+
+Security & operational notes:
+- Do not commit credentials; use environment variables and secret managers.
+- Ensure DB user has least privilege — only required permissions for schema changes and app operations.
+
+Testing:
+- For tests, export a helper to create an in-memory or disposable test database (e.g., SQLite memory or test Postgres container using Testcontainers).
+
+This file contains guidance only. Implement the actual TypeScript connection code according to chosen ORM and environment.
 /**
  * Database Configuration
  * 
