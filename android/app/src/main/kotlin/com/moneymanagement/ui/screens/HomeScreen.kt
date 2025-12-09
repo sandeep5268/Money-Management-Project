@@ -1,22 +1,79 @@
+
 package com.moneymanagement.ui.screens
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue // Added for delegate handling
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.moneymanagement.ui.theme.ExpenseRed
 import com.moneymanagement.ui.theme.IncomeGreen
 import com.moneymanagement.viewmodel.HomeViewModel
 import java.text.NumberFormat
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.util.*
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun HomeScreen(
+    viewModel: HomeViewModel = hiltViewModel(),
+    onNavigateToTransactionList: () -> Unit,
+    onNavigateToAddTransaction: () -> Unit,
+    onNavigateToSettings: () -> Unit
+) {
+    // [PERFORMANCE FIX] Use lifecycle-aware collection to stop updates when app is paused
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    
+    // [UI FIX] Scroll State for the root column
+    val scrollState = rememberScrollState()
+    
+    LaunchedEffect(Unit) {
+        viewModel.loadDashboardData()
+    }
+    
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Money Management") },
+                actions = {
+                    IconButton(onClick = onNavigateToSettings) {
+                        Icon(Icons.Default.Settings, contentDescription = "Settings")
+                    }
+                }
+            )
+        },
+        floatingActionButton = {
+            FloatingActionButton(onClick = onNavigateToAddTransaction) {
+                Icon(Icons.Default.Add, contentDescription = "Add Transaction")
+            }
+        }
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(16.dp)
+                // [CRITICAL FIX] Added scroll capability. 
+                // Prevents UI cutoff on small screens.
+                .verticalScroll(scrollState),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // Balance Card
+            Card(
+                modifier = Modifier.fillMaxWidth
+"""
 /**
  * HomeScreen - Main dashboard screen
  * 
@@ -270,4 +327,4 @@ fun formatDate(timestamp: Long): String {
     val format = java.text.SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
     return format.format(date)
 }
-
+"""

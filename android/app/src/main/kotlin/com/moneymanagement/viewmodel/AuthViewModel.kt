@@ -1,60 +1,127 @@
-AuthViewModel.kt - ViewModel Responsibilities & Implementation Guide
+// AuthViewModel.kt - ViewModel Responsibilities & Implementation Guide
 
-Purpose:
-- Provide UI state and actions for authentication flows (login, register, token refresh) for the Compose UI.
-- Coordinate with `AuthRepository` (or remote service) to execute network calls and persist tokens securely.
+// Purpose:
+// - Provide UI state and actions for authentication flows (login, register, token refresh) for the Compose UI.
+// - Coordinate with `AuthRepository` (or remote service) to execute network calls and persist tokens securely.
 
-Recommended state model (descriptive):
-- `data class AuthUiState(
-  val email: String,
-  val password: String,
-  val isLoading: Boolean,
-  val emailError: String?,
-  val passwordError: String?,
-  val loginError: String?,
-  val isAuthenticated: Boolean
-)
+// Recommended state model (descriptive):
+// - `data class AuthUiState(
+//   val email: String,
+//   val password: String,
+//   val isLoading: Boolean,
+//   val emailError: String?,
+//   val passwordError: String?,
+//   val loginError: String?,
+//   val isAuthenticated: Boolean
+// )
 
-Responsibilities / functions to implement (descriptive):
-- `fun onEmailChanged(value: String)` — update `email` and clear related errors.
-- `fun onPasswordChanged(value: String)` — update `password` and clear related errors.
-- `suspend fun login()` — validate inputs, call `AuthRepository.login(email, password)`, handle success/failure, and store tokens securely.
-- `suspend fun logout()` — clear tokens and update `isAuthenticated`.
-- `fun observeAuthState()` — expose whether user is currently authenticated (e.g., check encrypted storage for token validity or use a repository flow).
+// Responsibilities / functions to implement (descriptive):
+// - `fun onEmailChanged(value: String)` — update `email` and clear related errors.
+// - `fun onPasswordChanged(value: String)` — update `password` and clear related errors.
+// - `suspend fun login()` — validate inputs, call `AuthRepository.login(email, password)`, handle success/failure, and store tokens securely.
+// - `suspend fun logout()` — clear tokens and update `isAuthenticated`.
+// - `fun observeAuthState()` — expose whether user is currently authenticated (e.g., check encrypted storage for token validity or use a repository flow).
 
-Implementation and design notes:
-- Use `ViewModel` + `viewModelScope` coroutines for async operations.
-- Expose UI state as `StateFlow` (read-only for UI) so Compose can `collectAsState()`.
-- Do not perform heavy IO on the main thread; use `Dispatchers.IO` for repository calls.
-- Delegate actual token storage to a secure storage wrapper (EncryptedSharedPreferences or Jetpack Security).
+// Implementation and design notes:
+// - Use `ViewModel` + `viewModelScope` coroutines for async operations.
+// - Expose UI state as `StateFlow` (read-only for UI) so Compose can `collectAsState()`.
+// - Do not perform heavy IO on the main thread; use `Dispatchers.IO` for repository calls.
+// - Delegate actual token storage to a secure storage wrapper (EncryptedSharedPreferences or Jetpack Security).
 
-Error handling and retry:
-- Return structured errors from repository (e.g., `AuthResult.Success` / `AuthResult.Failure`) and map to user-friendly messages.
-- Provide exponential retry/backoff for transient network errors in repository or via WorkManager for background refresh.
+// Error handling and retry:
+// - Return structured errors from repository (e.g., `AuthResult.Success` / `AuthResult.Failure`) and map to user-friendly messages.
+// - Provide exponential retry/backoff for transient network errors in repository or via WorkManager for background refresh.
 
-Security:
-- Never expose tokens as plain text in the ViewModel logs or UI state.
-- Use refresh token rotation and short-lived access tokens.
+// Security:
+// - Never expose tokens as plain text in the ViewModel logs or UI state.
+// - Use refresh token rotation and short-lived access tokens.
 
-Testing guidance:
-- Unit test ViewModel logic by providing a fake `AuthRepository` that simulates success, failure, and network errors.
-- Verify state transitions (loading -> success -> authenticated) and that errors are surfaced correctly.
+// Testing guidance:
+// - Unit test ViewModel logic by providing a fake `AuthRepository` that simulates success, failure, and network errors.
+// - Verify state transitions (loading -> success -> authenticated) and that errors are surfaced correctly.
 
-Integration notes:
-- The `AuthViewModel` should be provided via DI so the UI can receive test doubles in UI tests.
+// Integration notes:
+// - The `AuthViewModel` should be provided via DI so the UI can receive test doubles in UI tests.
 
-This file provides descriptive guidance only. Implement the Kotlin `ViewModel` with actual code following these responsibilities and patterns.
+// This file provides descriptive guidance only. Implement the Kotlin `ViewModel` with actual code following these responsibilities and patterns.
+
+
 package com.moneymanagement.viewmodel
 
+import android.util.Patterns
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.moneymanagement.data.repository.AuthRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+@HiltViewModel
+class AuthViewModel @Inject constructor(
+    private val authRepository: AuthRepository
+) : ViewModel() {
+    
+    // [ARCH FIX] Hoisted Form State
+    // The ViewModel now holds the "Single Source of Truth" for all input fields.
+    data class AuthUiState(
+        val email: String = "",
+        val password: String = "",
+        val name: String = "",
+        val confirmPassword: String = "",
+        
+        val isLoading: Boolean = false,
+        val isLoginSuccess: Boolean = false,
+        val isRegistrationSuccess: Boolean = false,
+        
+        // [UX FIX] Granular errors for specific field highlighting
+        val emailError: String? = null,
+        val passwordError: String? = null,
+        val authError: String? = null, // General errors (Network, etc.)
+        
+        val userToken: String? = null
+    )
+    
+    private val _uiState = MutableStateFlow(AuthUiState())
+    val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
+    
+    // --- Input Handling ---
+    
+    fun updateEmail(input: String) {
+        _uiState.update { it.copy(email = input, emailError = null, authError = null) }
+    }
+
+    fun updatePassword(input: String) {
+        _uiState.update { it.copy(password = input, passwordError = null, authError = null) }
+    }
+
+    fun updateName(input: String) {
+        _uiState.update { it.copy(name = input, authError = null) }
+    }
+
+    fun updateConfirmPassword(input: String) {
+        _uiState.update { it.copy(confirmPassword = input, authError = null) }
+    }
+
+    // --- Actions ---
+
+    fun login() {
+        val currentState = _uiState.value
+        
+        // [UX FIX] Real-time validation updates state immediately
+        if (!validateLogin(currentState.email, currentState.password)) return
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, authError = null) }
+            
+            try {
+                // Uses internal state, no arguments needed
+                val response =
+
+"""
 /**
  * AuthViewModel - Manages authentication state and logic
  * 
@@ -222,3 +289,4 @@ class AuthViewModel @Inject constructor(
         }
     }
 }
+"""

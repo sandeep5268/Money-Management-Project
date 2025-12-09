@@ -50,6 +50,57 @@ package com.moneymanagement.data.local
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
+package com.moneymanagement.data.local
+
+import androidx.room.ColumnInfo
+import androidx.room.Entity
+import androidx.room.Index
+import androidx.room.PrimaryKey
+
+/**
+ * TransactionEntity - Room database entity for storing transactions locally.
+ * Refactored for Financial Precision and Sync Readiness.
+ */
+@Entity(
+    tableName = "transactions",
+    // [PERFORMANCE FIX] Added indices for columns used in WHERE/ORDER BY clauses
+    indices = [
+        Index(value = ["date"]),
+        Index(value = ["category"]),
+        Index(value = ["type"]),
+        Index(value = ["synced"]) // Speed up "get unsynced" queries
+    ]
+)
+data class TransactionEntity(
+    @PrimaryKey
+    val id: String, // UUID
+    
+    // [CRITICAL FIX] Changed Double to Long (Minor Units/Paise)
+    // Example: ₹10.50 is stored as 1050. Prevents floating point errors.
+    @ColumnInfo(name = "amount_minor")
+    val amountMinor: Long, 
+    
+    val type: String, // "income" or "expense"
+    
+    val category: String,
+    
+    val description: String?,
+    
+    val date: Long, // Epoch Milliseconds
+    
+    val source: String, // "sms", "manual"
+    
+    val synced: Boolean = false,
+    
+    val createdAt: Long = System.currentTimeMillis(),
+    
+    // [SYNC ARCHITECTURE FIX] Added for conflict resolution
+    val updatedAt: Long = System.currentTimeMillis(),
+
+    // [SYNC ARCHITECTURE FIX] Soft-delete flag. 
+    // Allows the sync engine to know a record was deleted.
+
+"""
 /**
  * TransactionEntity - Room database entity for storing transactions locally
  * 
@@ -87,3 +138,4 @@ data class TransactionEntity(
     
     val createdAt: Long = System.currentTimeMillis() // Local creation timestamp
 )
+"""
