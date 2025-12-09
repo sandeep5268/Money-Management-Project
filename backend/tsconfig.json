@@ -1,0 +1,52 @@
+/**
+ * TypeScript Configuration
+ * 
+ * Compiler options for TypeScript code compilation
+ * Specifies target JavaScript version, module system, and strict type checking
+ */
+
+{
+  "compilerOptions": {
+    // Target JavaScript version (ES2020)
+    "target": "ES2020",
+    
+    // Module system (CommonJS for Node.js)
+    "module": "commonjs",
+    
+    // Output directory for compiled JavaScript
+    "outDir": "./dist",
+    
+    // Source directory
+    "rootDir": "./src",
+    
+    // Strict type checking
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    
+    // Module resolution
+    "moduleResolution": "node",
+    
+    // Decorators (for dependency injection)
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    
+    // Enable source maps for debugging
+    "sourceMap": true,
+    
+    // Resolve JSON modules
+    "resolveJsonModule": true,
+    
+    // Allow unused variables to be warnings
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true
+  },
+  
+  // Files to include in compilation
+  "include": ["src/**/*"],
+  
+  // Files to exclude
+  "exclude": ["node_modules", "dist", "**/*.test.ts"]
+}

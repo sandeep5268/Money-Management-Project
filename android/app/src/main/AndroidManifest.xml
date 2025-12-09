@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android Manifest - Declares app permissions, activities, receivers, and services -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    package="com.moneymanagement">
+
+    <!-- Permissions required for SMS reading -->
+    <!-- READ_SMS: Read incoming SMS messages for transaction parsing -->
+    <!-- RECEIVE_SMS: Listen for incoming SMS broadcasts -->
+    <!-- READ_PHONE_STATE: Check phone state for better SMS handling -->
+    <uses-permission android:name="android.permission.READ_SMS" />
+    <uses-permission android:name="android.permission.RECEIVE_SMS" />
+    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
+    
+    <!-- Internet permission for API communication with backend -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    
+    <!-- Background execution permissions -->
+    <!-- ACCESS_NETWORK_STATE: Check network availability -->
+    <!-- FOREGROUND_SERVICE: Run WorkManager tasks in foreground -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    
+    <!-- Biometric authentication (fingerprint/face) -->
+    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
+
+    <application
+        android:name=".MoneyManagementApplication"
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.MoneyManagement"
+        tools:targetApi="31">
+
+        <!-- Main application activity (entry point) -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:theme="@style/Theme.MoneyManagement">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- SMS Broadcast Receiver - Listens for incoming SMS messages -->
+        <!-- Priority 1000: High priority to intercept SMS before other apps -->
+        <receiver
+            android:name=".receivers.SMSReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter android:priority="1000">
+                <action android:name="android.provider.Telephony.SMS_RECEIVED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Background Service - Periodic SMS checking and transaction sync -->
+        <!-- Runs via WorkManager to handle periodic tasks efficiently -->
+        <service
+            android:name=".services.TransactionSyncService"
+            android:exported="false"
+            android:permission="android.permission.BIND_JOB_SERVICE" />
+
+    </application>
+
+</manifest>
